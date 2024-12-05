@@ -42,7 +42,7 @@ class MinimaHoppingOptimizer(GlobalOptimizer):
         self.m_cur = [None] * num_clusters
         self.minima_history: List[Tuple[Atoms, int]] = []
         self.last_energy = float("inf")
-        #self.box_length *= 0.75
+        # self.box_length *= 0.75
         self.end_early = False
 
     def iteration(self) -> None:
@@ -62,7 +62,7 @@ class MinimaHoppingOptimizer(GlobalOptimizer):
             self.utility.fix_fragmentation(cluster)
             self.append_history()
 
-            if(self.temperature > 3000):
+            if self.temperature > 3000:
                 print("Run ended due to temperature being too high")
                 self.end_early = True
 
@@ -111,7 +111,7 @@ class MinimaHoppingOptimizer(GlobalOptimizer):
                 # print(m.get_potential_energy())
                 print("We've seen this minima before")
 
-                #Enhanced temperature feedback
+                # Enhanced temperature feedback
                 visited = minima_tuple[1]
                 self.temperature *= self.beta_o * (1 + np.log(visited))
                 print("Visited this minima: " + str(visited) + " times")
@@ -121,12 +121,13 @@ class MinimaHoppingOptimizer(GlobalOptimizer):
                 return
 
         # print("We've never seen this minima before")
-        self.minima_history.append((m.copy(), 1)) #type: ignore
+        self.minima_history.append((m.copy(), 1))  # type: ignore
         self.minima_history[-1][0].calc = self.calculator()
         self.temperature *= self.beta_n
 
     def is_converged(self) -> bool:
         return self.end_early
+
 
 mh = MinimaHoppingOptimizer(
     num_clusters=1,

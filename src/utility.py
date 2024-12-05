@@ -303,22 +303,22 @@ class Utility:
         return com
 
     def dbscan(
-            self,
-            eps,
-            positions,
+        self,
+        eps,
+        positions,
     ):
         db = DBSCAN(eps=eps, min_samples=1).fit(positions)
         labels = db.labels_
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
         n_noise = list(labels).count(-1)
-#        assert n_noise == 0, "Some atoms in DBSCAN were recognized as noise"
+        #        assert n_noise == 0, "Some atoms in DBSCAN were recognized as noise"
         return labels, n_clusters
 
     def adjust_velocities(self, cluster, positions, velocities, elements, masses):
         com = self.get_com(positions, masses)
         eps = self.get_eps(elements)
         eps /= 2
-        #print(eps)
+        # print(eps)
         mass_3d = np.vstack([masses] * 3).T
         _e_kin = 0.5 * np.sum(mass_3d * velocities * velocities)
         _v_average = np.sqrt((2.0 * _e_kin) / (np.mean(masses) * velocities.shape[0]))
@@ -354,4 +354,3 @@ class Utility:
             cluster.get_atomic_numbers(),
             cluster.get_masses(),
         )
-
