@@ -2,7 +2,7 @@
 Implementation of the Minima Hopping Algorithm
 """
 
-from typing import List, Any
+from typing import List, Any, Dict, Tuple
 import numpy as np
 from scipy.spatial.distance import pdist
 
@@ -40,9 +40,10 @@ class MinimaHoppingOptimizer(GlobalOptimizer):
         self.e_diff = 0.5
         self.mdmin = 3
         self.m_cur = [None] * num_clusters
-        self.minima_history: List[Atoms] = []
+        self.minima_history: List[Tuple[Atoms, int]] = []
         self.last_energy = float("inf")
-        self.box_length *= 0.75
+        #self.box_length *= 0.75
+        self.end_early = False
 
     def iteration(self) -> None:
         """
@@ -58,23 +59,13 @@ class MinimaHoppingOptimizer(GlobalOptimizer):
                 opt.run(fmax=0.2)
 
             self.check_results(cluster, cluster_index)
-
-            # If the maximum distance between 2 atoms is greater than some number, then we should check
-            # if we have fragmentation
-
-            distances = pdist(cluster.get_positions())
-            if (
-                np.max(distances) > 2 * np.sqrt(3) * self.box_length * 0.5
-            ):  # fuck around with this
-                print(np.max(distances))
-                print(2 * np.sqrt(3) * self.box_length * 0.5)
-                print("Checking for fragmentation")
-                self.utility.fix_fragmentation(cluster)
-
-            if self.temperature > 3000: #Force temperature back down if it goes too high
-                self.temperature = 1000
-
+            self.utility.fix_fragmentation(cluster)
             self.append_history()
+
+            if(self.temperature > 3000):
+                print("Run ended due to temperature being too high")
+                self.end_early = True
+
             print("Temperature: " + str(self.temperature))
             print("Energy: " + str(cluster.get_potential_energy()))
             print()
@@ -111,33 +102,39 @@ class MinimaHoppingOptimizer(GlobalOptimizer):
             self.m_cur[cluster_index].calc = self.calculator()  # type: ignore
 
         for (
-            minima
+            minima_tuple
         ) in (
             self.minima_history
         ):  # Is this a minima we've seen before? Change temperature accordingly
-            if self.utility.compare_clusters(m, minima):
+            if self.utility.compare_clusters(m, minima_tuple[0]):
                 # print(minima.get_potential_energy())
                 # print(m.get_potential_energy())
-                # print("We've seen this minima before")
-                self.temperature *= self.beta_o
+                print("We've seen this minima before")
+
+                #Enhanced temperature feedback
+                visited = minima_tuple[1]
+                self.temperature *= self.beta_o * (1 + np.log(visited))
+                print("Visited this minima: " + str(visited) + " times")
+                self.minima_history.remove(minima_tuple)
+                minima_tuple = (minima_tuple[0], minima_tuple[1] + 1)
+                self.minima_history.append(minima_tuple)
                 return
 
         # print("We've never seen this minima before")
-        self.minima_history.append(m.copy())  # type: ignore
-        self.minima_history[-1].calc = self.calculator()
+        self.minima_history.append((m.copy(), 1)) #type: ignore
+        self.minima_history[-1][0].calc = self.calculator()
         self.temperature *= self.beta_n
 
     def is_converged(self) -> bool:
-        return False
-
+        return self.end_early
 
 mh = MinimaHoppingOptimizer(
     num_clusters=1,
-    atoms=19,
+    atoms=13,
     atom_type="Fe",
-    temperature=100,
+    temperature=300,
 )
-mh.run(500)
+mh.run(1000)
 best_cluster = mh.get_best_cluster_found()
 mh.write_trajectory("../clusters/minima_progress.traj")
 print("Best energy found: ")

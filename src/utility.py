@@ -282,7 +282,7 @@ class Utility:
         :param cluster2: Second cluster
         :return: boolean
         """
-        return np.isclose(cluster1.get_potential_energy(), cluster2.get_potential_energy())  # type: ignore
+        return np.isclose(cluster1.get_potential_energy(), cluster2.get_potential_energy(), atol=5e-6, rtol=0)  # type: ignore
 
     # Extracted from: https://github.com/ElsevierSoftwareX/SOFTX-D-23-00623/blob/main/minimahopping/md/dbscan.py#L24
     def get_eps(self, elements):
@@ -307,7 +307,7 @@ class Utility:
             eps,
             positions,
     ):
-        db = DBSCAN(eps=eps, min_samples=2).fit(positions)
+        db = DBSCAN(eps=eps, min_samples=1).fit(positions)
         labels = db.labels_
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
         n_noise = list(labels).count(-1)
@@ -317,6 +317,8 @@ class Utility:
     def adjust_velocities(self, cluster, positions, velocities, elements, masses):
         com = self.get_com(positions, masses)
         eps = self.get_eps(elements)
+        eps /= 2
+        #print(eps)
         mass_3d = np.vstack([masses] * 3).T
         _e_kin = 0.5 * np.sum(mass_3d * velocities * velocities)
         _v_average = np.sqrt((2.0 * _e_kin) / (np.mean(masses) * velocities.shape[0]))
@@ -324,7 +326,7 @@ class Utility:
         labels, n_clusters = self.dbscan(eps, positions)
 
         print("Number of clusters: " + str(n_clusters))
-        while n_clusters > 1:
+        while n_clusters != 1:
             print("Number of clusters is still: " + str(n_clusters))
             for i in range(n_clusters):
                 indices = np.where(labels == i)
